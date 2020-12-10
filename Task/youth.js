@@ -1,5 +1,5 @@
 /*
-更新时间: 2020-11-26 10:00
+更新时间: 2020-12-10 23:00
 赞赏:中青邀请码`46308484`,农妇山泉 -> 有点咸，万分感谢
 本脚本仅适用于中青看点极速版领取青豆
 获取Cookie方法:
@@ -152,6 +152,7 @@ else if ($.time('HH')>4&&$.time('HH')<8){
   await endCard();
   }
   await SevCont();
+  await comApp();
   await ArticleShare();
   await openbox();
   await getAdVideo();
@@ -418,16 +419,6 @@ function boxshare() {
     })
 }
 
-function Invitant2() {      
- return new Promise((resolve, reject) => {
-   $.post({ url: `${YOUTH_HOST}User/fillCode`,headers: JSON.parse(signheaderVal),body: `{"code": "46746961"}`
-}, (error, response, data) =>
- {
-   // $.log(`Invitdata:${data}`)
-   })
-  resolve()
- })
-}
 function friendsign(uid) {
     return new Promise((resolve, reject) => {
         const url = {
@@ -505,7 +496,28 @@ function gameVideo() {
         })
     })
 }
-
+function comApp() {
+    return new Promise((resolve, reject) => {
+        const url = {
+            url: `https://ios.baertt.com/v5/mission/msgRed.json`,
+            headers: {
+            'User-Agent': 'KDApp/1.8.0 (iPhone; iOS 14.2; Scale/3.00)'
+            },
+            body: articlebodyVal,
+        }
+        $.post(url, (error, response, data) => {
+            redres = JSON.parse(data)
+            if (redres.success == true) {
+                detail += `【回访奖励】+${redres.items.score}个青豆\n`
+            }else{
+                if(redres.error_code == "100009"){
+                    //detail += `【回访奖励】${redres.message}\n`
+                }
+            }
+            resolve()
+        })
+    })
+}
 
 //阅读奖励
 function readArticle() {
