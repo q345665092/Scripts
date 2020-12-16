@@ -1,7 +1,8 @@
 /*
-更新时间: 2020-12-10 23:00
+更新时间: 2020-12-12 23:00
 赞赏:中青邀请码`46308484`,农妇山泉 -> 有点咸，万分感谢
 本脚本仅适用于中青看点极速版领取青豆
+
 获取Cookie方法:
 1.将下方[rewrite_local]和[MITM]地址复制的相应的区域
 下，运行时间自行配置
@@ -14,19 +15,26 @@
 4.非专业人士制作，欢迎各位大佬提出宝贵意见和指导
 5.增加每日打卡，打卡时间每日5:00-8:00❗️，请不要忘记设置运行时间，共4条Cookie，请全部获取，获取请注释
 6. 支持Github Actions多账号运行，填写'YOUTH_HEADER'值多账号时用'#'号隔开，其余值均用'&'分割  ‼️，当转盘次数为50或者100并且余额大于10元时推送通知
+
 ~~~~~~~~~~~~~~~~
 Surge 4.0 :
 [Script]
 中青看点 = type=cron,cronexp=35 5 0 * * *,script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/youth.js,script-update-interval=0
+
 中青看点 = type=http-request,pattern=https:\/\/\w+\.youth\.cn\/TaskCenter\/(sign|getSign),script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/youth.js
+
 中青看点 = type=http-request,pattern=https:\/\/ios\.baertt\.com\/v5\/article\/complete,script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/youth.js, requires-body=true
+
 中青看点 = type=http-request,pattern=https:\/\/ios\.baertt\.com\/v5\/article\/red_packet,script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/youth.js, requires-body=true
+
 中青看点 = type=http-request,pattern=https:\/\/ios\.baertt\.com\/v5\/user\/app_stay\.json,script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/youth.js, requires-body=true
+
 ~~~~~~~~~~~~~~~~
 Loon 2.1.0+
 [Script]
 # 本地脚本
 cron "04 00 * * *" script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/youth.js, enabled=true, tag=中青看点
+
 http-request https:\/\/\w+\.youth\.cn\/TaskCenter\/(sign|getSign) script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/youth.js
 http-request https:\/\/ios\.baertt\.com\/v5\/article\/complete script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/youth.js, requires-body=true
 http-request https:\/\/ios\.baertt\.com\/v5\/article\/red_packet script-path=https://raw.githubusercontent.com/Sunert/Scripts/master/Task/youth.js, requires-body=true
@@ -35,15 +43,22 @@ http-request https:\/\/ios\.baertt\.com\/v5\/user\/app_stay\.json script-path=ht
 QX 1.0. 7+ :
 [task_local]
 0 9 * * * youth.js
+
 [rewrite_local]
 https:\/\/\w+\.youth\.cn\/TaskCenter\/(sign|getSign) url script-request-header youth.js
+
 https?:\/\/ios\.baertt\.com\/v5\/article\/complete url script-request-body youth.js
+
 https:\/\/ios\.baertt\.com\/v5\/article\/red_packet url script-request-body youth.js
+
 https:\/\/ios\.baertt\.com\/v5\/user\/app_stay\.json url script-request-body youth.js
+
+
 ~~~~~~~~~~~~~~~~
 [MITM]
 hostname = *.youth.cn, ios.baertt.com 
 ~~~~~~~~~~~~~~~~
+
 */
 
 let s = 200 //各数据接口延迟
@@ -51,7 +66,7 @@ const $ = new Env("中青看点")
 let notifyInterval = $.getdata("notifytimes")||50 //通知间隔，默认抽奖每50次通知一次，如需关闭全部通知请设为0
 const YOUTH_HOST = "https://kd.youth.cn/WebApi/";
 const notify = $.isNode() ? require('./sendNotify') : '';
-let logs = $.getdata('zqlogs')||false, signresult; 
+let logs = $.getdata('zqlogs')||false, rotaryscore=0,doublerotary=0,signresult; 
 let cookiesArr = [], signheaderVal = '',
     readArr = [], articlebodyVal ='',
     timeArr = [], timebodyVal = '',
@@ -160,7 +175,30 @@ else if ($.time('HH')>4&&$.time('HH')<8){
   await readArticle();
   await Articlered();
   await readTime();
+for ( k=0;k<5;k++){
+ console.log("等待5s进行下一次任务")
+  await $.wait(5000);
   await rotary();
+if (rotaryres.status == 0) {
+      rotarynum = ` 转盘${rotaryres.msg}🎉`;
+      break
+   } else if(rotaryres.status == 1){
+      rotaryscore += rotaryres.data.score
+     rotarytimes = rotaryres.data.remainTurn
+  }
+ if (rotaryres.status == 1 && rotaryres.data.doubleNum !== 0) {
+              await TurnDouble();
+           if (Doubleres.status == 1) {
+              doublerotary += Doubleres.data.score
+           }
+      }
+}
+if (rotaryres.status == 1) {
+  detail += `【转盘抽奖】+${rotaryscore}个青豆 剩余${rotaryres.data.remainTurn}次\n`
+}
+if (rotaryres.status !== 0&&rotaryres.data.doubleNum !== 0){
+  detail += `【转盘双倍】+${doublerotary}青豆 剩余${rotaryres.data.doubleNum}次\n`
+}
   await rotaryCheck();
   await earningsInfo();
   await showmsg();
@@ -605,18 +643,13 @@ function rotary() {
                 body: rotarbody
             }
             $.post(url,async (error, response, data) => {
-                rotaryres = JSON.parse(data)
-                if (rotaryres.status == 1) {
-                    rotarytimes = rotaryres.data.remainTurn
-                    detail += `【转盘抽奖】+${rotaryres.data.score}个青豆 剩余${rotaryres.data.remainTurn}次\n`
-                    if (rotaryres.data.doubleNum != 0) {
-                      await TurnDouble();
-                    }
+                try{
+                      rotaryres = JSON.parse(data)
+                     } catch (e) {
+                   $.logErr(e, resp);
+                   } finally {
+                  resolve()
                 }
-                if (rotaryres.code == 10010) {
-                    rotarynum = ` 转盘${rotaryres.msg}🎉`
-                }
-              resolve();
             })
         }, s);
     })
@@ -671,16 +704,16 @@ function TurnDouble() {
           let time = (new Date()).getTime()
             const url = {
                 url: `${YOUTH_HOST}RotaryTable/toTurnDouble?_=${time}`,headers: JSON.parse(signheaderVal),body: rotarbody}
-            $.post(url, (error, response, data) => {
+            $.post(url, (error, response, data) => { 
+              try{
                 Doubleres = JSON.parse(data)
-                if (Doubleres.status == 1) {
-                    detail += `【转盘双倍】+${Doubleres.data.score1}青豆 剩余${rotaryres.data.doubleNum}次\n`
-                }else{
-                    //detail += `【转盘双倍】失败 ${Doubleres.msg}\n`
-     
+                     } catch (e) {
+                   $.logErr(e, resp);
+                   } finally {
+                  resolve()
                 }
+             resolve()
             })
-         resolve()
         },s)
     })
 }
